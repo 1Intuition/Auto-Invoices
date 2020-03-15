@@ -10,16 +10,20 @@ import datetime
 import subprocess
 import pkgutil
 import importlib
-import win32com.client
 import re
 from datetime import datetime
 from pprint import pprint
+
+if pkgutil.find_loader("pywin32") is None:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "pywin32"])
 
 if pkgutil.find_loader("python-docx") is None:
     subprocess.check_call([sys.executable, "-m", "pip", "install", "python-docx"])
 
 if pkgutil.find_loader("art") is None:
     subprocess.check_call([sys.executable, "-m", "pip", "install", "art"])
+
+import win32com.client
 
 from art import *
 
@@ -387,23 +391,26 @@ def registerNewClients(filename="clients.json"):
             
         while True:
             temp_first = input("First name: ").capitalize()
-            if temp_first.isalpha(): break
+            if re.match(r"^[-.a-zA-Z ]+$", temp_first):
+                break
             else:
-                print("It has to contain only letters")
+                print("The format is not valid")
 
         while True:
             temp_last = input("Last name: ").capitalize()
-            if temp_last.isalpha(): break
+            if re.match(r"^[-.a-zA-Z ]+$", temp_last):
+                break
             else:
-                print("It has to contain only letters")
+                print("The format is not valid")
 
         temp_street = input("Street and street no.: ").capitalize()
 
         while True:
             temp_city = input("City: ").capitalize()
-            if temp_city.isalpha(): break
+            if re.match(r"^[-.a-zA-Z ]+$", temp_city):
+                break
             else:
-                print("It has to contain only letters")
+                print("The format is not valid")
 
         while True:
             temp_province = input("Province (ex: QC): ").capitalize()
