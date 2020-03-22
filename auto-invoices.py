@@ -763,13 +763,24 @@ def main(first_run=False):
 
 
     # Load config.yaml
-    with open(CONFIG_FILENAME, 'r') as fp:
-        try:
-            config = yaml.safe_load(fp)
-        except yaml.YAMLError:
-            config = None
+    if os.path.isfile(CONFIG_FILENAME):
+        with open(CONFIG_FILENAME, 'r') as fp:
+            try:
+                config = yaml.safe_load(fp)
+            except yaml.YAMLError:
+                config = None
+    else:
+        config = None
     
-    first_receipt_no = 1 if None else config['first_receipt_no']
+    # init config vars
+    first_receipt_no = 1 if config==None else config['first_receipt_no']
+
+    # write to config.yaml if config==None
+    if config==None:
+        data = {"first_receipt_no": first_receipt_no}
+        with open(CONFIG_FILENAME, 'w') as f:
+            yaml.dump(data, f, default_flow_style=False)
+
 
 
     # IDENT / CLIENTS / DATABASE / GENDATA
