@@ -1,4 +1,7 @@
-import os, sys, requests, hashlib
+import os, sys, hashlib, subprocess, pkgutil
+if pkgutil.find_loader("requests") is None:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "requests"])
+import requests
 
 DOWNLOAD_LINK = "https://raw.githubusercontent.com/1Intuition/Auto-Invoices/master/auto-invoices.py"
 LOCAL_FILE_PATH = "auto-invoices.py"
