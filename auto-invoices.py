@@ -1,10 +1,14 @@
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 __author__ = "Teodor Oprea"
 
+# -------------------------------------------------| COPYRIGHT |-------------------------------------------------
+# You are not allowed to use this program for personnal or business use without the written consent of the author.
+# -------------------------------------------------| COPYRIGHT |-------------------------------------------------
 
 import os
 import sys
 import json
+import yaml
 import math
 import datetime
 import subprocess
@@ -35,7 +39,7 @@ from docx.shared import Pt, Inches
 
 # constants
 
-FISRT_RECEIPT_NO = 1 # will recomment 01-YEAR as receipt number first
+CONFIG_FILENAME = 'config.yaml'
 
 WD_FORMAT_PDF = 17
 
@@ -513,11 +517,11 @@ def print_receipt(receipt):
     print_meeting_details(receipt['DETAILS'])
     print_saveinfo(receipt['SAVE'])
     
-# Recommends a receipt number this year based on receipt_database and FISRT_RECEIPT_NO
+# Recommends a receipt number this year based on receipt_database and first_receipt_no
 def getNextReceiptNo(receipt_database):
     str_year = str(datetime.now().year)
     if receipt_database is None:
-        return "{}-{}".format(str(FISRT_RECEIPT_NO).zfill(2), str_year)
+        return "{}-{}".format(str(first_receipt_no).zfill(2), str_year)
     else:
         nums = []
         for receipt in receipt_database:
@@ -527,7 +531,7 @@ def getNextReceiptNo(receipt_database):
                     nums.append(int(splitted[0]))
                 except Exception:
                     pass
-        i = FISRT_RECEIPT_NO
+        i = first_receipt_no
         while True:
             if i not in nums:
                 return "{}-{}".format(str(i).zfill(2), str_year)
@@ -756,6 +760,17 @@ def main(first_run=False):
         clear_screen()
         art = text2art("AUTO\nInvoices", font="small")
         input("{}\n\n{}\nWelcome to AUTO INVOICES v{}\nBy {}\n{}\n\n\n\n[PRESS ENTER TO START]".format(art, DASHES, __version__, __author__, DASHES))
+
+
+    # Load config.yaml
+    with open(CONFIG_FILENAME, 'r') as fp:
+        try:
+            config = yaml.safe_load(fp)
+        except yaml.YAMLError:
+            config = None
+    
+    first_receipt_no = 1 if None else config['first_receipt_no']
+
 
     # IDENT / CLIENTS / DATABASE / GENDATA
 
