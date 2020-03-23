@@ -1,14 +1,14 @@
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 __author__ = "Teodor Oprea"
 
 # -------------------------------------------------| COPYRIGHT |-------------------------------------------------
 # You are not allowed to use this program for personnal or business use without the written consent of the author.
 # -------------------------------------------------| COPYRIGHT |-------------------------------------------------
 
+# Native modules
 import os
 import sys
 import json
-import yaml
 import math
 import datetime
 import subprocess
@@ -18,26 +18,18 @@ import re
 from datetime import datetime
 from pprint import pprint
 
-if pkgutil.find_loader("pywin32") is None:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "pywin32"])
-
-if pkgutil.find_loader("python-docx") is None:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "python-docx"])
-
-if pkgutil.find_loader("art") is None:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "art"])
-
+# Assume packages are installed (verified by setup)
 import win32com.client
-
 from art import *
-
+import yaml
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
 from docx.enum.style import WD_STYLE_TYPE
 from docx.shared import Pt, Inches
 
-# constants
+
+# Constants
 
 CONFIG_FILENAME = 'config.yaml'
 
@@ -61,11 +53,8 @@ SAVEINFO_KEYS = ["path", "filename", "date", "notes"]
 SAVEINFO_KEYS_NAMES = ["Saved to path", "Filename", "Date when saved", "Notes"]
 
 
-
 def createReceipt(absFolderPath=None, ident=None, client=None, meeting_details=None):
-    
     date = datetime.strptime(meeting_details['date'], DATE_FORMAT)
-
     if meeting_details['payment_method']==1:
         doc = Document('templates/template_1.docx')
     elif meeting_details['payment_method']==2:
@@ -74,42 +63,33 @@ def createReceipt(absFolderPath=None, ident=None, client=None, meeting_details=N
         doc = Document('templates/template_3.docx')
     else:
         raise ValueError("Wrong payment method value!")
-
     table1, table2, table3, table4 = doc.tables[0], doc.tables[1], doc.tables[2], doc.tables[3]
-
     # PROVIDER IDENT
     table1.cell(1,1).text = "{} {}".format(ident['first'], ident['last'])       # therapist name
     table1.cell(2,1).text = ident['street']                                     # therapist address
     table1.cell(3,1).text = "{}, {}".format(ident['city'], ident['province'])   # therapist city
     table1.cell(3,3).text = ident['postal_code']                                # therapist postal code
     table1.cell(2,3).text = ident['phone']                                      # therapist phone
-
     # CLIENT IDENT
     table2.cell(1,1).text = "{} {}".format(client['first'], client['last'])      # client name
     table2.cell(2,1).text = client['street']                                     # client address
     table2.cell(3,1).text = "{}, {}".format(client['city'], client['province'])  # client city
     table2.cell(3,3).text = client['postal_code']                                # client postal code
     table2.cell(2,3).text = client['phone']                                      # client phone
-
     # CREATING FONT OBJECT
     obj_styles = doc.styles
-
     obj_font = obj_styles.add_style('Arial8', WD_STYLE_TYPE.CHARACTER).font
     obj_font.size = Pt(8)
     obj_font.name = 'Arial'
-
     obj_font = obj_styles.add_style('Arial9', WD_STYLE_TYPE.CHARACTER).font
     obj_font.size = Pt(9)
     obj_font.name = 'Arial'
-
     obj_font = obj_styles.add_style('Arial14', WD_STYLE_TYPE.CHARACTER).font
     obj_font.size = Pt(14)
     obj_font.name = 'Arial'
-
     obj_font = obj_styles.add_style('Calibri8', WD_STYLE_TYPE.CHARACTER).font
     obj_font.size = Pt(8)
     obj_font.name = 'Calibri'
-
     # SESSION INFORMATION
     if meeting_details['is_health_assessment']:
         table3.cell(3,0).paragraphs[0].add_run("X", style='Arial9').bold = True                 # health assessment
@@ -128,17 +108,13 @@ def createReceipt(absFolderPath=None, ident=None, client=None, meeting_details=N
     table3.cell(3,10).paragraphs[0].add_run(ident['city'], style='Arial9')                                  # city
     table3.cell(3,11).paragraphs[0].add_run(ident['province'], style='Arial9')                              # province
     table3.cell(3,12).paragraphs[0].add_run("{0:.2f} $".format(meeting_details['cost_amount']), style='Arial9')                 # amount
-
     table3.cell(11,12).paragraphs[0].add_run("{0:.2f} $".format(meeting_details['cost_amount']), style='Arial9').bold = True    # total amount
-
     table3.cell(12,9).paragraphs[0].add_run(costToWords(meeting_details['cost_amount']), style='Arial9')    # Amount in letters
     table3.cell(13,9).paragraphs[0].add_run("One (1)", style='Arial9')                                      # no of visits
     table3.cell(14,9).paragraphs[0].add_run(ident['no_tps'], style='Arial9')                                # TPS no
     table3.cell(15,9).paragraphs[0].add_run(ident['no_tvq'], style='Arial9')                                # TVQ no
-
     # NATUROPATH DECLARATION
     table4.cell(3,0).paragraphs[0].add_run(ident['no_membership'], style='Arial14').bold = True      # membership no
-
     # receipt no
     receipt_no_numbers = "".join(meeting_details['receipt_no'].split('-'))
     if len(receipt_no_numbers) != 6:
@@ -147,15 +123,12 @@ def createReceipt(absFolderPath=None, ident=None, client=None, meeting_details=N
     for char in receipt_no_numbers:
         table4.cell(3,i).paragraphs[0].add_run(char, style='Arial14')
         i+=1
-
     # date
     table4.cell(3,7).paragraphs[0].add_run(meeting_details['date'], style='Arial14')
-
     # DEFAULT FILENAMES
     filename = default_filename = "{} {} {} (#{})".format(meeting_details['date'], client['first'], client['last'], meeting_details['receipt_no'])
     docx_filename = "{}\\{}.docx".format(absFolderPath, default_filename)
     pdf_filename = "{}\\{}.pdf".format(absFolderPath, default_filename)
-
     # CHECK IF FILES ALREADY EXISTS
     if os.path.isfile(docx_filename) or os.path.isfile(pdf_filename):
         no_copy = 1
@@ -168,17 +141,14 @@ def createReceipt(absFolderPath=None, ident=None, client=None, meeting_details=N
                 continue
             else:
                 break
-
     # SAVE DOCX
     doc.save(docx_filename)
-
     # SAVE TO PDF
     word = win32com.client.Dispatch('Word.Application')
     doc1 = word.Documents.Open(docx_filename)
     doc1.SaveAs(pdf_filename, FileFormat=WD_FORMAT_PDF)
     doc1.Close()
     word.Quit()
-
     return filename
 
 
@@ -249,8 +219,9 @@ def query_yes_no(question, default=None):
 def numToLetter(value): #The function converts the numbers into letters. 
     if not isinstance(value, int):
         raise ValueError('This function only allows integers.')
-    NUM_TO_WORD_MAPPING = {0: "", 1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight", 9: "nine", 10: "ten", 11: "eleven", 12: "twelve",
-     13: "thirteen", 20: "twenty", 30: "thirty", 50: "fifty", 80: "eighty", 10**2: "one hundred", 10**3: "one thousand", 10**5: "one hundred thousand", 10**6: "one milion"}
+    NUM_TO_WORD_MAPPING = {0: "", 1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight",
+     9: "nine", 10: "ten", 11: "eleven", 12: "twelve", 13: "thirteen", 20: "twenty",
+     30: "thirty", 50: "fifty", 80: "eighty", 10**2: "one hundred", 10**3: "one thousand", 10**5: "one hundred thousand", 10**6: "one milion"}
     if value in NUM_TO_WORD_MAPPING:
         return NUM_TO_WORD_MAPPING[value]
     elif 13<value<=19: return composeTeen(value)
@@ -340,13 +311,11 @@ def deleteClient(client, filename="clients.json"):
 
 # add new clients to clients.json and returns new REGISTRED_CLIENTS
 def registerNewClients(filename="clients.json"):
-
     # clients before
     if not os.path.isfile(filename):
         clients_before = None
     else:
         clients_before = loadData(filename)
-
     # Clients identification
     clear_screen()
     print("\n----------------")
@@ -362,14 +331,11 @@ def registerNewClients(filename="clients.json"):
             continue
         else:
             break
-
     if d==0:
         if clients_before is None:
             return None
         else:
             return clients_before
-
-    
     registred_clients = list()
     for x in range(d): # 0,1,2,... Every client identification
         print("\n\nClient ({}/{})\n----------------".format(x+1,d))
@@ -389,40 +355,38 @@ def registerNewClients(filename="clients.json"):
                     except OSError:
                         print("The folder you entered cannot be created")
                         continue
-
             if query_yes_no("The folder path is: {}\nUse this path?".format(temp_folder_path)):
                 break
-            
+        # First name
         while True:
             temp_first = input("First name: ").capitalize()
             if re.match(r"^[-.a-zA-Z ]+$", temp_first):
                 break
             else:
                 print("The format is not valid")
-
+        # Last name
         while True:
             temp_last = input("Last name: ").capitalize()
             if re.match(r"^[-.a-zA-Z ]+$", temp_last):
                 break
             else:
                 print("The format is not valid")
-
+        # Street
         temp_street = input("Street and street no.: ").capitalize()
-
+        # City
         while True:
             temp_city = input("City: ").capitalize()
             if re.match(r"^[-.a-zA-Z ]+$", temp_city):
                 break
             else:
                 print("The format is not valid")
-
+        # Province
         while True:
             temp_province = input("Province (ex: QC): ").capitalize()
             if temp_province.isalpha(): break
             else:
                 print("It has to contain only letters")
-
-
+        # Zipcode
         zipCode = re.compile(r"^[ABCEGHJKLMNPRSTVXY]{1}\d{1}[A-Z]{1} *\d{1}[A-Z]{1}\d{1}$")
         while True:
             temp_postal_code = input("Postal code (ex: X1X 1X1): ").upper()
@@ -435,8 +399,10 @@ def registerNewClients(filename="clients.json"):
                 break
             else:
                 print("The postal code format is invalid")
-
-        phone_re = re.compile(r"^(?:(?:\+?1\s*(?:[.-]\s*)?)?(?:\(\s*([2-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9])\s*\)|([2-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9]))\s*(?:[.-]\s*)?)?([2-9]1[02-9]|[2-9][02-9]1|[2-9][02-9]{2})\s*(?:[.-]\s*)?([0-9]{4})(?:\s*(?:#|x\.?|ext\.?|extension)\s*(\d+))?$")
+        # Phone
+        phone_re = re.compile(r"^(?:(?:\+?1\s*(?:[.-]\s*)?)?(?:\(\s*([2-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9])\s*\)"
+            r"|([2-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9]))\s*(?:[.-]\s*)?)?([2-9]1[02-9]|[2-9][02-9]1|[2-9][02-9]{2})"
+            r"\s*(?:[.-]\s*)?([0-9]{4})(?:\s*(?:#|x\.?|ext\.?|extension)\s*(\d+))?$")
         while True:
             temp_phone = input("Phone number (ex: 514-111-1111): ")
             if phone_re.match(temp_phone):
@@ -444,11 +410,10 @@ def registerNewClients(filename="clients.json"):
                 break
             else:
                 print("The phone number format is invalid")
-
+        # All data
         temp_client_data = {"path": temp_folder_path, "first": temp_first, "last": temp_last, "street": temp_street, "city": temp_city,
             "province": temp_province, "postal_code": temp_postal_code, "phone": temp_phone}
         registred_clients.append(temp_client_data)
-
     else:
         print("\nLoading...\n")
         if clients_before is not None:
@@ -456,7 +421,6 @@ def registerNewClients(filename="clients.json"):
             registred_clients = clients_before
         with open(filename , 'w') as fp: # write to clients.json
             json.dump(registred_clients, fp, indent=4) # Write data to clients.json
-    
     return loadData(filename)
 
 
@@ -539,7 +503,6 @@ def getNextReceiptNo(receipt_database):
 
 
 def askMeetingDetails(client, receipt_database):
-
     if receipt_database is None:
         is_first_receipt = True
     else:
@@ -549,11 +512,8 @@ def askMeetingDetails(client, receipt_database):
         else:
             is_first_receipt = False
             latest_receipt = findLastReceiptCreated(all_receipts_of_client)
-
-
     is_health_assessment = query_yes_no("Was it a HEALTH ASSESSMENT?")
     is_follow_up = query_yes_no("Was it a FOLLOW UP?")
-
     # Date
     if query_yes_no("Was the date TODAY?"):
         date = datetime.now()
@@ -566,7 +526,6 @@ def askMeetingDetails(client, receipt_database):
                 break
             except ValueError:
                 print("Date is invalid or wrong format")
-
     while True: # from_time and am_pm
         from_time = input("FROM what hour was the meeting (hh:mm) --> ")
         try:
@@ -578,7 +537,6 @@ def askMeetingDetails(client, receipt_database):
             break
         else:
             print("'{}' does not have the right format! (minutes require 2 numbers)".format(from_time))
-
     while True: # to_time
         to_time = input("TO what hour was the meeting (hh:mm) --> ")
         try:
@@ -590,7 +548,6 @@ def askMeetingDetails(client, receipt_database):
             break
         else:
             print("'{}' does not have the right format! (minutes require 2 numbers)".format(to_time))
-
     while True: # cost
         if is_first_receipt:
             c = input("What amount did you charge with taxes (ex: 130.50) --> ")
@@ -606,7 +563,6 @@ def askMeetingDetails(client, receipt_database):
             continue
         else:
             break
-
     while True: # receipt no
         receipt_no = input("Type the receipt number (NEXT: {}) --> ".format(getNextReceiptNo(receipt_database)))
         try:
@@ -640,13 +596,11 @@ def askMeetingDetails(client, receipt_database):
             print("'{}' already exists in database!".format(receipt_no))
             continue
         break
-
     if is_first_receipt:
         payment_method = choices("How were you paid?", ["Cash / Interac", "Cheque", "Credit card"])
     else:
         payment_method = choices("How were you paid? (last time: {})".format(latest_receipt['DETAILS']['payment_method']), 
             ["Cash / Interac", "Cheque", "Credit card"])
-
     return {"is_health_assessment": is_health_assessment, "is_follow_up": is_follow_up, "date": date_str, "am_pm": am_pm,
     "from_time": from_time, "to_time": to_time, "cost_amount": cost_amount, "receipt_no": receipt_no, "payment_method": payment_method}
 
@@ -670,7 +624,6 @@ def askPath(client):
     # 1. check if client['path'] is OK
     # 2. If OK ask if choose set path or choose another one
     # 3. If another one: ask absolute path and verify
-
     if os.path.isabs(client['path']):
         if query_yes_no("Existing path for client: {}\nUse this path?".format(client['path']), "yes"):
             if os.path.isdir(client['path']):
@@ -686,7 +639,6 @@ def askPath(client):
                     print("Cannot create folder")
     else:
         print("ERROR: Client path is not absolute!\nClient path ({})".format(client['path']))
-
     while True:
         path = os.path.abspath(input("Type path to save: "))
         if query_yes_no("Absolute path: {}\nConfirm this path?".format(path), "yes"): # confirm
@@ -763,24 +715,13 @@ def main(first_run=False):
 
 
     # Load config.yaml
-    if os.path.isfile(CONFIG_FILENAME):
-        with open(CONFIG_FILENAME, 'r') as fp:
-            try:
-                config = yaml.safe_load(fp)
-            except yaml.YAMLError:
-                config = None
-    else:
-        config = None
+    with open(CONFIG_FILENAME, 'r') as fp:
+        try:
+            config = yaml.safe_load(fp)
+        except yaml.YAMLError:
+            config = None
     
-    # init config vars
-    first_receipt_no = 1 if config==None else config['first_receipt_no']
-
-    # write to config.yaml if config==None
-    if config==None:
-        data = {"first_receipt_no": first_receipt_no}
-        with open(CONFIG_FILENAME, 'w') as f:
-            yaml.dump(data, f, default_flow_style=False)
-
+    first_receipt_no = 1 if None else config['first_receipt_no']
 
 
     # IDENT / CLIENTS / DATABASE / GENDATA
@@ -894,36 +835,10 @@ def main(first_run=False):
         open("database.json", 'a').close()
         receipt_database = None
 
-
-    # # GENDATA variable
-    # if os.path.isfile('./gendata.json'):
-    #     gendata = loadData("gendata.json")
-    #     if gendata is not None: # if is json format
-    #         # check if valid or not
-    #         invalid = list()
-    #         index = 0
-    #         for single_text in gendata:
-    #             if not checkDictKeys(single_text, ["path", "first", "last", "street", "city", "province", "postal_code", "phone"]):
-    #                 invalid.append(index)
-    #             index += 1
-    #         if len(invalid)==0:
-    #             print("Gendata file is VALID")
-    #         else:
-    #             sys.exit("Gendata.json has invalid data format (indexes: {})".format(invalid))
-    # else: # file gendata.json not exists
-    #     open("gendata.json", 'a').close()
-    #     gendata = None
-
-
-
-
-
     # print("\nIdentification: {}".format(ident))
     # print("\nRegistred clients: {}".format(registred_clients))
     # print("\nReceipts: {}".format(receipt_database))
-    # print("\nGenData: {}".format(gendata))
     
-
     # MAIN MENU\
     clear_screen()
     main_choice = choices("What action would you like to perform?",
@@ -950,7 +865,6 @@ def main(first_run=False):
                 print("Only create a receipt (without storing)\n{}".format(DASHES))
             elif main_choice == 3:
                 print("Only store a receipt in database\n{}".format(DASHES))
-
             client = chooseClient(registred_clients, "For what client are you doing this receipt?")
             if main_choice == 3:
                 path = None
@@ -1040,17 +954,15 @@ def main(first_run=False):
 
     ############################################################################################
     elif main_choice == 8:          # Search in your receipt database
-
         if receipt_database is None:
             print("\nThe receipt database is empty.")
         else:
             clear_screen()
-            search_choice = choices("What type of search would you like to do?", ["Search lastest saved receipt", "Search by receipt number", "Search by client", "Search by date"], True)
-            
+            search_choice = choices("What type of search would you like to do?",
+             ["Search lastest saved receipt", "Search by receipt number", "Search by client", "Search by date"], True)
             # Latest saved
             if search_choice == 1:
                 print_receipt(findLastReceiptCreated(receipt_database))
-
             # search by receipt number
             elif search_choice == 2:
                 num = input("\nEnter the receipt number --> ")
@@ -1059,7 +971,6 @@ def main(first_run=False):
                     print("\n'{}' does not exist in the receipt database".format(num))
                 else:
                     print_receipt(found_receipt)
-
             # search by client
             elif search_choice == 3:
                 clear_screen()
@@ -1072,7 +983,6 @@ def main(first_run=False):
                         print_receipt(choose_receipt(found_receipts, False))
                         if not query_yes_no("\nDo you want to go back to your search results?"):
                             break
-
             # search by date
             elif search_choice == 4:
                 while True:
@@ -1094,15 +1004,6 @@ def main(first_run=False):
                         if not query_yes_no("\nDo you want to go back to your search results?"):
                             break
 
-
-
-
-
-
-
-
-
-
             elif search_choice == 0:
                 main()
             else:
@@ -1112,8 +1013,6 @@ def main(first_run=False):
     ############################################################################################
     else:
         raise Exception("An unknown choice was given!")
-
-
 
 
 if __name__ == '__main__':
