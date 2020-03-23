@@ -759,16 +759,17 @@ def updateDocxTemplates():
 
 # checks if program will continue with receipt (True) or not (False)
 def checkDocxTemplates():
-    print("Verifying template documents...")
-    if sha256sum('templates.zip') == TEMPLATES_ZIP_HASH:
-        print("Template documents are valid.")
-        return True
-    else:
-        print("Template documents are invalid!")
-        if updateDocxTemplates():
+    if os.path.isfile('templates.zip'):
+        print("Verifying template documents...")
+        if sha256sum('templates.zip') == TEMPLATES_ZIP_HASH:
+            print("Template documents are valid.")
             return True
         else:
-            return False
+            print("Template documents are invalid!")
+    if updateDocxTemplates():
+        return True
+    else:
+        return False
 
 
 def main(first_run=False):
