@@ -45,12 +45,12 @@ def checkRequirements(localFilePath, downloadLink):
     try:
         req = requests.get(downloadLink)
     except Exception:
-        print("No internet connexion. Cannot install requirements...")
+        print("No internet connexion. Cannot download requirements...")
         return
     if os.access(localFilePath, os.F_OK) is not True:
-        print("Installing requirements...")
+        print("Downloading requirements...")
         update(req, localFilePath)
-        print("Installation complete!")
+        print("Download complete!")
         return
     if hashlib.sha256(req.content).hexdigest() == sha256sum(localFilePath):
         print("Requirements are correctly installed!")
@@ -75,10 +75,13 @@ if __name__ == '__main__':
         checkRequirements("requirements.txt", "https://raw.githubusercontent.com/1Intuition/Auto-Invoices/master/requirements.txt")
         # install requirements
         if os.path.isfile("requirements.txt"):
+            print("Installing or verifying requirements...")
             subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"], stdout=subprocess.PIPE)
+            print("Ready to go!")
         else:
             print("Could not check requirements! Program might not work correctly...")
     else:
         print("No internet connexion! Cannot update or install program and requirements.")
 
+    input("\n[PRESS ENTER TO START]")
     exec(open("auto-invoices.py").read())
