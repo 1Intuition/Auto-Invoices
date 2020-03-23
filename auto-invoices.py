@@ -1,4 +1,4 @@
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 __author__ = "Teodor Oprea"
 
 # -------------------------------------------------| COPYRIGHT |-------------------------------------------------
@@ -18,10 +18,13 @@ import importlib
 import re
 from datetime import datetime
 from pprint import pprint
+import zipfile
+import hashlib
 
 # Assume packages are installed (verified by setup)
 try:
 
+    import requests
     import win32com.client
     from art import *
     import yaml
@@ -36,11 +39,13 @@ except ModuleNotFoundError as e:
     sys.exit(1)
 
 
-
 # Constants
 
 CONFIG_FILENAME = 'config.yaml'
 DEFAULT_CONFIG = {'first_receipt_no': 1}
+
+TEMPLATES_DOWNLOAD_LINK = 'https://www.dropbox.com/s/1jck67mi7qx2m6u/templates.zip?dl=1'
+TEMPLATES_ZIP_HASH = '4a8004216df6bec99bb3b8eeee3d03fa2e4847616547bfe3f22049e89a85406f'
 
 WD_FORMAT_PDF = 17
 
@@ -368,30 +373,30 @@ def registerNewClients(filename="clients.json"):
                 break
         # First name
         while True:
-            temp_first = input("First name: ").capitalize()
+            temp_first = input("First name: ")
             if re.match(r"^[-.a-zA-Z ]+$", temp_first):
                 break
             else:
                 print("The format is not valid")
         # Last name
         while True:
-            temp_last = input("Last name: ").capitalize()
+            temp_last = input("Last name: ")
             if re.match(r"^[-.a-zA-Z ]+$", temp_last):
                 break
             else:
                 print("The format is not valid")
         # Street
-        temp_street = input("Street and street no.: ").capitalize()
+        temp_street = input("Street and street no.: ")
         # City
         while True:
-            temp_city = input("City: ").capitalize()
+            temp_city = input("City: ")
             if re.match(r"^[-.a-zA-Z ]+$", temp_city):
                 break
             else:
                 print("The format is not valid")
         # Province
         while True:
-            temp_province = input("Province (ex: QC): ").capitalize()
+            temp_province = input("Province (ex: QC): ")
             if temp_province.isalpha(): break
             else:
                 print("It has to contain only letters")
@@ -714,6 +719,57 @@ def findLastReceiptCreated(receipt_database):
     else:
         return latest_receipt
 
+# returns hashed string
+def sha256sum(filename):
+    h  = hashlib.sha256()
+    mv = memoryview(bytearray(128*1024))
+    with open(filename, 'rb', buffering=0) as f:
+        for n in iter(lambda : f.readinto(mv), 0):
+            h.update(mv[:n])
+    return h.hexdigest()
+
+# Downloads and extracts zip: returns True is succeeded or False if not
+def updateDocxTemplates():
+    print("Downloading template documents...")
+    try:
+        req = requests.get(TEMPLATES_DOWNLOAD_LINK)
+    except Exception:
+        print("ERROR: Could not download files.")
+        return False
+    print("Download complete!")
+    if hashlib.sha256(req.content).hexdigest() != TEMPLATES_ZIP_HASH:
+        print("ERROR: The files to download are corrupted.")
+        return False
+    with open('templates.zip','wb') as f:
+        f.write(req.content)
+    if not zipfile.is_zipfile('templates.zip'):
+        print("ERROR: The downloaded file is not a ZipFile.")
+        return False
+    while True:
+        password = input("Enter decryption password --> ").encode()
+        try:
+            with zipfile.ZipFile('templates.zip') as zf:
+                print("Decrpting files...")
+                zf.extractall(pwd=password)
+            print("Decryption complete!")
+            return True
+        except Exception:
+            print("\nFailed to decrypt files: incorrect password!\n")
+            continue
+
+# checks if program will continue with receipt (True) or not (False)
+def checkDocxTemplates():
+    print("Verifying template documents...")
+    if sha256sum('templates.zip') == TEMPLATES_ZIP_HASH:
+        print("Template documents are valid.")
+        return True
+    else:
+        print("Template documents are invalid!")
+        if updateDocxTemplates():
+            return True
+        else:
+            return False
+
 
 def main(first_run=False):
     if first_run:
@@ -891,6 +947,10 @@ def main(first_run=False):
                 print("Only create a receipt (without storing)\n{}".format(DASHES))
             elif main_choice == 3:
                 print("Only store a receipt in database\n{}".format(DASHES))
+            if main_choice == 1 or main_choice == 2:
+                print("\n")
+                if not checkDocxTemplates():
+                    main()
             client = chooseClient(registred_clients, "For what client are you doing this receipt?")
             if main_choice == 3:
                 path = None
