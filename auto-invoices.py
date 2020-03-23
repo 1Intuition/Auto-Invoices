@@ -1,4 +1,4 @@
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 __author__ = "Teodor Oprea"
 
 # -------------------------------------------------| COPYRIGHT |-------------------------------------------------
@@ -7,6 +7,7 @@ __author__ = "Teodor Oprea"
 
 # Native modules
 import os
+import traceback
 import sys
 import json
 import math
@@ -19,19 +20,27 @@ from datetime import datetime
 from pprint import pprint
 
 # Assume packages are installed (verified by setup)
-import win32com.client
-from art import *
-import yaml
-from docx import Document
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
-from docx.enum.style import WD_STYLE_TYPE
-from docx.shared import Pt, Inches
+try:
+
+    import win32com.client
+    from art import *
+    import yaml
+    from docx import Document
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
+    from docx.enum.style import WD_STYLE_TYPE
+    from docx.shared import Pt, Inches
+
+except ModuleNotFoundError as e:
+    print("\nRequirements are not met:", e)
+    sys.exit(1)
+
 
 
 # Constants
 
 CONFIG_FILENAME = 'config.yaml'
+DEFAULT_CONFIG = {'first_receipt_no': 1}
 
 WD_FORMAT_PDF = 17
 
@@ -482,7 +491,7 @@ def print_receipt(receipt):
     print_saveinfo(receipt['SAVE'])
     
 # Recommends a receipt number this year based on receipt_database and first_receipt_no
-def getNextReceiptNo(receipt_database):
+def getNextReceiptNo(receipt_database, first_receipt_no):
     str_year = str(datetime.now().year)
     if receipt_database is None:
         return "{}-{}".format(str(first_receipt_no).zfill(2), str_year)
@@ -564,7 +573,7 @@ def askMeetingDetails(client, receipt_database):
         else:
             break
     while True: # receipt no
-        receipt_no = input("Type the receipt number (NEXT: {}) --> ".format(getNextReceiptNo(receipt_database)))
+        receipt_no = input("Type the receipt number (NEXT: {}) --> ".format(getNextReceiptNo(receipt_database, config['first_receipt_no'])))
         try:
             receipt_no_year = receipt_no.split("-")[1]
         except IndexError:
@@ -715,13 +724,30 @@ def main(first_run=False):
 
 
     # Load config.yaml
-    with open(CONFIG_FILENAME, 'r') as fp:
-        try:
-            config = yaml.safe_load(fp)
-        except yaml.YAMLError:
-            config = None
+    if os.path.isfile(CONFIG_FILENAME):
+        # Create config (default settings) if missing... If keys are missing, replace with default value
+        with open(CONFIG_FILENAME, 'r') as fp:
+            try:
+                config = yaml.safe_load(fp)
+            except yaml.YAMLError:
+                print("ERROR: The config.yaml file is corrupted and cannot be read.")
+                config = {}
+        default_config_keys = list(DEFAULT_CONFIG.keys())
+        actual_config_keys = list(config.keys())
+        for default_key in default_config_keys:
+            if default_key not in actual_config_keys:
+                config[default_key] = DEFAULT_CONFIG[default_key]
+                print("WARNING: The config file does not have {}.".format(default_key))
+    else:
+        # Create config file and set to default config
+        with open(CONFIG_FILENAME , 'w') as file:
+            yaml.dump(DEFAULT_CONFIG, file)
+        config = DEFAULT_CONFIG
     
-    first_receipt_no = 1 if None else config['first_receipt_no']
+
+
+
+        
 
 
     # IDENT / CLIENTS / DATABASE / GENDATA
@@ -1020,3 +1046,12 @@ if __name__ == '__main__':
         main(True)
     except EOFError:
         sys.exit()
+    except Exception as e:
+        print("\n\nAn unexpected error occured...\n\nError Traceback:\n\n")
+        print(e)
+        tb = traceback.format_exc()
+        print(tb)
+        with open("err_log.txt", 'a+') as err_file:
+            err_file.write(str(datetime.now()) + "\n\n" + tb + "\n\n")
+        input("\n[PRESS ENTER TO EXIT THE PROGRAM]")
+        sys.exit(1)
