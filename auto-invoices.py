@@ -516,7 +516,7 @@ def getNextReceiptNo(receipt_database, first_receipt_no):
             i += 1
 
 
-def askMeetingDetails(client, receipt_database):
+def (client, receipt_database, config):
     if receipt_database is None:
         is_first_receipt = True
     else:
@@ -957,7 +957,7 @@ def main(first_run=False):
                 path = None
             else:
                 path = askPath(client)
-            meeting_details = askMeetingDetails(client, receipt_database)                       # FIX THIS FUNCTION...
+            meeting_details = askMeetingDetails(client, receipt_database, config)
             if main_choice == 1 or main_choice == 3:
                 notes = input("Add notes --> ")
             else:
